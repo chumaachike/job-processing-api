@@ -19,12 +19,12 @@ func (r *Repository) Create(ctx context.Context, req CreateJobRequest) (Job, err
 	query := `
 		INSERT INTO jobs (type, payload)
 		VALUES ($1, $2)
-		RETURNING id, type payload, status, created_at
+		RETURNING id, type, payload, status, created_at
 	`
 
 	var job Job
 
-	if err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload)).Scan(&job.ID, &job.Type, &job.Payload, job.Status, &job.CreatedAt); err != nil {
+	if err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload)).Scan(&job.ID, &job.Type, &job.Payload, &job.Status, &job.CreatedAt); err != nil {
 		return Job{}, fmt.Errorf(
 			"insert job: %w", err,
 		)

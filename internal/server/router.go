@@ -10,7 +10,7 @@ import (
 	"github.com/chumaachike/job-processing-api/internal/job"
 )
 
-func NewRouter() http.Handler {
+func NewRouter(jobHandler *job.Handler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -25,7 +25,7 @@ func NewRouter() http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Mount("/jobs", job.Routes())
+		r.Mount("/jobs", job.Routes(jobHandler))
 	})
 
 	return r
