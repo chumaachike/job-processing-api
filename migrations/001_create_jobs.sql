@@ -1,8 +1,0 @@
-CREATE TABLE jobs (
-    id UUID PRIMARY KEY,
-    type VARCHAR(100) NOT NULL,
-    payload JSONB NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'queued',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);

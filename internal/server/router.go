@@ -25,7 +25,7 @@ func NewRouter() http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Mount("jobs", job.Routes())
+		r.Mount("/jobs", job.Routes())
 	})
 
 	return r
