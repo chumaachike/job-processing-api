@@ -15,7 +15,7 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	var req CreateJobRequest
@@ -28,7 +28,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := h.service.Create(r.Context(), req)
+	job, err := h.service.CreateJob(r.Context(), req)
 
 	if errors.Is(err, ErrInvalidJob) {
 		log.Printf("CreateJob failed: %v", err)
@@ -58,9 +58,29 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listJobs(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("List jobs"))
-}
+	filter := JobFilter{
+		Type:   r.URL.Query().Get("type"),
+		Status: JobStatus(r.URL.Query().Get("status")),
+	}
 
-func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Get job"))
+	jobs, err := h.service.ListJobs(r.Context(), filter)
+	if err != nil {
+		log.Printf("List Job internal error: %v", err)
+
+		http.Error(
+			w,
+			"Internal server error",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	w.Header().Set(
+		"Content-Type",
+		"application/json",
+	)
+
+	w.WriteHeader(http.StatusOK)
+
+	_ = json.NewEncoder(w).Encode(jobs)
 }

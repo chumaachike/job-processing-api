@@ -9,9 +9,8 @@ import (
 func Routes(h *Handler) http.Handler {
 	r := chi.NewRouter()
 
-	r.Post("/", h.Create)
+	r.Post("/", h.CreateJob)
 	r.Get("/", h.listJobs)
-	r.Get("/{id}", h.listJobs)
 
 	return r
 }
