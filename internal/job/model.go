@@ -33,9 +33,14 @@ type JobFilter struct {
 	Status JobStatus
 }
 
+type UpdateJobStatusRequest struct {
+	Status JobStatus `json:"status"`
+}
+
 var (
 	ErrInvalidJob       = errors.New("invalid job")
 	ErrInvalidJobFilter = errors.New("invalid job filter")
 	ErrInvalidJobID     = errors.New("invalid job id")
 	ErrJobNotFound      = errors.New("job not found")
+	ErrInvalidJobStatus = errors.New("Invalid job status")
 )

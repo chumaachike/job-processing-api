@@ -31,7 +31,7 @@ func main() {
 	defer db.Close()
 
 	// Initilize dependencies
-	jobRepository := job.NewRepository(db)
+	jobRepository := job.NewPostgresRepository(db)
 
 	jobService := job.NewService(jobRepository)
 

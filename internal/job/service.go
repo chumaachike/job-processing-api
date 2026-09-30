@@ -8,9 +8,10 @@ import (
 )
 
 type Repository interface {
-	CreateJob(ctx context.Context, req CreateJobRequest) (Job, error)
-	ListJobs(ctx context.Context, filter JobFilter) ([]Job, error)
-	GetJob(ctx context.Context, id int64) (Job, error)
+	CreateJob(context.Context, CreateJobRequest) (Job, error)
+	ListJobs(context.Context, JobFilter) ([]Job, error)
+	GetJob(context.Context, int64) (Job, error)
+	UpdateJob(context.Context, int64, JobStatus) (Job, error)
 }
 
 type Service struct {
@@ -65,4 +66,26 @@ func (s *Service) GetJob(ctx context.Context, id string) (Job, error) {
 	}
 
 	return s.repo.GetJob(ctx, jobID)
+}
+
+func (s *Service) UpdateJobStatus(ctx context.Context, id string, status JobStatus) (Job, error) {
+	id = strings.TrimSpace(id)
+
+	jobID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil || jobID <= 0 {
+		return Job{}, ErrInvalidJob
+	}
+
+	status = JobStatus(strings.TrimSpace(string(status)))
+
+	switch status {
+	case JobStatusQueued,
+		JobStatusRunning,
+		JobStatusSucceeded,
+		JobStatusFailed:
+	default:
+		return Job{}, ErrInvalidJobStatus
+	}
+
+	return s.repo.UpdateJob(ctx, jobID, status)
 }

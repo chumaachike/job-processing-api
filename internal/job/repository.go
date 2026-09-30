@@ -19,10 +19,7 @@ func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
 	}
 }
 
-func (r *PostgresRepository) CreateJob(
-	ctx context.Context,
-	req CreateJobRequest,
-) (Job, error) {
+func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest) (Job, error) {
 	const query = `
 		INSERT INTO jobs (type, payload)
 		VALUES ($1, $2)
@@ -119,6 +116,40 @@ func (r *PostgresRepository) GetJob(ctx context.Context, id int64) (Job, error) 
 
 	if err != nil {
 		return Job{}, fmt.Errorf("get job: %w", err)
+	}
+
+	return job, nil
+}
+
+func (r *PostgresRepository) UpdateJob(ctx context.Context, id int64, status JobStatus) (Job, error) {
+	const query = `
+		UPDATE jobs
+		SET status = $2
+		WHERE id = $1
+		RETURNING id, type, payload, status, created_at
+	`
+
+	var job Job
+
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		id,
+		status,
+	).Scan(
+		&job.ID,
+		&job.Type,
+		&job.Payload,
+		&job.Status,
+		&job.CreatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Job{}, ErrJobNotFound
+	}
+
+	if err != nil {
+		return Job{}, fmt.Errorf("update job: %w", err)
 	}
 
 	return job, nil

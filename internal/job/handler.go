@@ -102,3 +102,49 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 		log.Printf("failed to encode response: %v", err)
 	}
 }
+
+func (h *Handler) UpdateJobStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if id == "" {
+		http.Error(w, "Missing job id", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateJobStatusRequest
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	job, err := h.service.UpdateJobStatus(
+		r.Context(),
+		id,
+		req.Status,
+	)
+
+	switch {
+	case errors.Is(err, ErrInvalidJobID):
+		http.Error(w, "Invalid job id", http.StatusBadRequest)
+		return
+
+	case errors.Is(err, ErrInvalidJobStatus):
+		http.Error(w, "Invalid job status", http.StatusBadRequest)
+		return
+
+	case errors.Is(err, ErrJobNotFound):
+		http.Error(w, "Job not found", http.StatusNotFound)
+		return
+
+	case err != nil:
+		log.Printf("UpdateJobStatus internal error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, job)
+}

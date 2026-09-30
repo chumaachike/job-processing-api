@@ -12,6 +12,7 @@ func Routes(h *Handler) http.Handler {
 	r.Post("/", h.CreateJob)
 	r.Get("/", h.ListJobs)
 	r.Get("/{id}", h.GetJob)
+	r.Patch("/{id}", h.UpdateJobStatus)
 
 	return r
 }
