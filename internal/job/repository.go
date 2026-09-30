@@ -2,21 +2,28 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Repository struct {
+type PostgresRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
+	return &PostgresRepository{
+		db: db,
+	}
 }
 
-func (r *Repository) CreateJob(ctx context.Context, req CreateJobRequest) (Job, error) {
-	query := `
+func (r *PostgresRepository) CreateJob(
+	ctx context.Context,
+	req CreateJobRequest,
+) (Job, error) {
+	const query = `
 		INSERT INTO jobs (type, payload)
 		VALUES ($1, $2)
 		RETURNING id, type, payload, status, created_at
@@ -24,34 +31,51 @@ func (r *Repository) CreateJob(ctx context.Context, req CreateJobRequest) (Job, 
 
 	var job Job
 
-	if err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload)).Scan(&job.ID, &job.Type, &job.Payload, &job.Status, &job.CreatedAt); err != nil {
-		return Job{}, fmt.Errorf(
-			"insert job: %w", err,
-		)
+	err := r.db.QueryRow(
+		ctx,
+		query,
+		req.Type,
+		[]byte(req.Payload),
+	).Scan(
+		&job.ID,
+		&job.Type,
+		&job.Payload,
+		&job.Status,
+		&job.CreatedAt,
+	)
+
+	if err != nil {
+		return Job{}, fmt.Errorf("insert job: %w", err)
 	}
 
 	return job, nil
-
 }
 
-func (r *Repository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, error) {
-	query := `SELECT id, type, payload, status, created_at
-	FROM jobs
-	WHERE ($1 = '' OR type =$1)
-	AND ($2 = '' OR status =$2)
-	ORDER BY created_at DESC
+func (r *PostgresRepository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, error) {
+	const query = `
+		SELECT id, type, payload, status, created_at
+		FROM jobs
+		WHERE ($1 = '' OR type = $1)
+		  AND ($2 = '' OR status = $2)
+		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.Query(ctx, query, filter.Type, filter.Status)
+	rows, err := r.db.Query(
+		ctx,
+		query,
+		filter.Type,
+		filter.Status,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	defer rows.Close()
 
-	var jobs []Job
+	jobs := make([]Job, 0)
 
 	for rows.Next() {
 		var job Job
+
 		if err := rows.Scan(
 			&job.ID,
 			&job.Type,
@@ -59,8 +83,9 @@ func (r *Repository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, err
 			&job.Status,
 			&job.CreatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("Scan job: %w", err)
+			return nil, fmt.Errorf("scan job: %w", err)
 		}
+
 		jobs = append(jobs, job)
 	}
 
@@ -69,4 +94,32 @@ func (r *Repository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, err
 	}
 
 	return jobs, nil
+}
+
+func (r *PostgresRepository) GetJob(ctx context.Context, id int64) (Job, error) {
+	const query = `
+		SELECT id, type, payload, status, created_at
+		FROM jobs
+		WHERE id = $1
+	`
+
+	var job Job
+
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&job.ID,
+		&job.Type,
+		&job.Payload,
+		&job.Status,
+		&job.CreatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Job{}, ErrJobNotFound
+	}
+
+	if err != nil {
+		return Job{}, fmt.Errorf("get job: %w", err)
+	}
+
+	return job, nil
 }

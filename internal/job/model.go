@@ -2,6 +2,7 @@ package job
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -31,3 +32,10 @@ type JobFilter struct {
 	Type   string
 	Status JobStatus
 }
+
+var (
+	ErrInvalidJob       = errors.New("invalid job")
+	ErrInvalidJobFilter = errors.New("invalid job filter")
+	ErrInvalidJobID     = errors.New("invalid job id")
+	ErrJobNotFound      = errors.New("job not found")
+)
