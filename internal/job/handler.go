@@ -7,16 +7,19 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chumaachike/job-processing-api/metrics"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
 	service *Service
+	metrics *metrics.Metrics
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service *Service, metrics *metrics.Metrics) *Handler {
 	return &Handler{
 		service: service,
+		metrics: metrics,
 	}
 }
 
@@ -50,7 +53,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
+	h.metrics.JobCreated.Inc()
 	writeJSON(w, http.StatusCreated, job)
 }
 

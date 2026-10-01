@@ -14,5 +14,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   postgres_data:
+  prometheus_data:

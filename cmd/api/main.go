@@ -10,6 +10,7 @@ import (
 	"github.com/chumaachike/job-processing-api/internal/database"
 	"github.com/chumaachike/job-processing-api/internal/job"
 	"github.com/chumaachike/job-processing-api/internal/server"
+	"github.com/chumaachike/job-processing-api/metrics"
 )
 
 func main() {
@@ -35,7 +36,9 @@ func main() {
 
 	jobService := job.NewService(jobRepository)
 
-	jobHandler := job.NewHandler(jobService)
+	metrics := metrics.New()
+
+	jobHandler := job.NewHandler(jobService, metrics)
 
 	// Build router
 	router := server.NewRouter(jobHandler)
