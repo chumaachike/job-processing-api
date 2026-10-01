@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/chumaachike/job-processing-api/internal/config"
@@ -17,16 +19,23 @@ func main() {
 
 	ctx := context.Background()
 
+	logger := slog.New(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}),
+	)
+	slog.SetDefault(logger)
+
 	//Load configurations
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to load config", "error", "err")
 	}
 
 	db, err := database.NewPostgres(ctx, cfg.DatabaseURL)
 
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to load database", "error", err)
 	}
 
 	defer db.Close()
@@ -38,7 +47,7 @@ func main() {
 
 	metrics := metrics.New()
 
-	jobHandler := job.NewHandler(jobService, metrics)
+	jobHandler := job.NewHandler(jobService, metrics, logger)
 
 	// Build router
 	router := server.NewRouter(jobHandler)
@@ -52,8 +61,9 @@ func main() {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+
 	// 6. Start server
-	log.Printf("Server running on port %s", cfg.Port)
+	slog.Info("server started", "port", cfg.Port)
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)

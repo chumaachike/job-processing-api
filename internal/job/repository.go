@@ -28,12 +28,7 @@ func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest
 
 	var job Job
 
-	err := r.db.QueryRow(
-		ctx,
-		query,
-		req.Type,
-		[]byte(req.Payload),
-	).Scan(
+	err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload)).Scan(
 		&job.ID,
 		&job.Type,
 		&job.Payload,

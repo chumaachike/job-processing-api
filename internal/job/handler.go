@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/chumaachike/job-processing-api/metrics"
@@ -14,12 +14,14 @@ import (
 type Handler struct {
 	service *Service
 	metrics *metrics.Metrics
+	logger  *slog.Logger
 }
 
-func NewHandler(service *Service, metrics *metrics.Metrics) *Handler {
+func NewHandler(service *Service, metrics *metrics.Metrics, logger *slog.Logger) *Handler {
 	return &Handler{
 		service: service,
 		metrics: metrics,
+		logger:  logger,
 	}
 }
 
@@ -49,12 +51,12 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case err != nil:
-		log.Printf("CreateJob internal error: %v", err)
+		h.logger.Error("CreateJob internal error", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	h.metrics.JobCreated.Inc()
-	writeJSON(w, http.StatusCreated, job)
+	writeJSON(w, http.StatusCreated, job, h.logger)
 }
 
 func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
@@ -65,12 +67,12 @@ func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
 
 	jobs, err := h.service.ListJobs(r.Context(), filter)
 	if err != nil {
-		log.Printf("ListJobs internal error: %v", err)
+		h.logger.Error("ListJobs internal error", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, jobs)
+	writeJSON(w, http.StatusOK, jobs, h.logger)
 }
 
 func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
@@ -89,21 +91,12 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case err != nil:
-		log.Printf("GetJob internal error: %v", err)
+		h.logger.Error("Get job internal error", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, job)
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("failed to encode response: %v", err)
-	}
+	writeJSON(w, http.StatusOK, job, h.logger)
 }
 
 func (h *Handler) UpdateJobStatus(w http.ResponseWriter, r *http.Request) {
@@ -144,10 +137,19 @@ func (h *Handler) UpdateJobStatus(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case err != nil:
-		log.Printf("UpdateJobStatus internal error: %v", err)
+		h.logger.Error("UpdateJobStatus internal error", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, job)
+	writeJSON(w, http.StatusOK, job, h.logger)
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any, logger *slog.Logger) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		logger.Error("failed to encode response", "error", err)
+	}
 }
