@@ -2,22 +2,28 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/chumaachike/job-processing-api/internal/config"
 	"github.com/chumaachike/job-processing-api/internal/database"
 	"github.com/chumaachike/job-processing-api/internal/job"
 	"github.com/chumaachike/job-processing-api/internal/server"
-	"github.com/chumaachike/job-processing-api/metrics"
+	appmetrics "github.com/chumaachike/job-processing-api/metrics"
 )
 
 func main() {
-
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
 
 	logger := slog.New(
 		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -26,33 +32,35 @@ func main() {
 	)
 	slog.SetDefault(logger)
 
-	//Load configurations
+	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to load config", "error", "err")
+		slog.Error("failed to load config", "error", err)
+		return
 	}
 
+	// Connect to database
 	db, err := database.NewPostgres(ctx, cfg.DatabaseURL)
-
 	if err != nil {
-		slog.Error("failed to load database", "error", err)
+		slog.Error("failed to connect to database", "error", err)
+		return
 	}
-
 	defer db.Close()
 
-	// Initilize dependencies
+	// Dependency injection
 	jobRepository := job.NewPostgresRepository(db)
-
 	jobService := job.NewService(jobRepository)
 
-	metrics := metrics.New()
+	m := appmetrics.New()
 
-	jobHandler := job.NewHandler(jobService, metrics, logger)
+	jobHandler := job.NewHandler(
+		jobService,
+		m,
+		logger,
+	)
 
-	// Build router
 	router := server.NewRouter(jobHandler)
 
-	// Configure HTTP Server
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           router,
@@ -62,10 +70,32 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	// 6. Start server
-	slog.Info("server started", "port", cfg.Port)
+	// Start server
+	go func() {
+		slog.Info("server started", "port", cfg.Port)
 
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		if err := srv.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server failed", "error", err)
+		}
+	}()
+
+	// Wait here until SIGINT or SIGTERM
+	<-ctx.Done()
+
+	slog.Info("shutdown signal received")
+
+	// Give active requests time to finish
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("graceful shutdown failed", "error", err)
+		return
 	}
+
+	slog.Info("server stopped gracefully")
 }
