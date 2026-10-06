@@ -49,6 +49,8 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrInvalidJob):
 		http.Error(w, "Invalid job", http.StatusBadRequest)
 		return
+	case errors.Is(err, ErrQueueFull):
+		http.Error(w, "server busy, retry later", http.StatusServiceUnavailable)
 
 	case err != nil:
 		h.logger.Error("CreateJob internal error", "error", err)

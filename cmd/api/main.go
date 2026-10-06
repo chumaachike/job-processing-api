@@ -13,7 +13,9 @@ import (
 	"github.com/chumaachike/job-processing-api/internal/config"
 	"github.com/chumaachike/job-processing-api/internal/database"
 	"github.com/chumaachike/job-processing-api/internal/job"
+	"github.com/chumaachike/job-processing-api/internal/queue"
 	"github.com/chumaachike/job-processing-api/internal/server"
+	"github.com/chumaachike/job-processing-api/internal/worker"
 	appmetrics "github.com/chumaachike/job-processing-api/metrics"
 )
 
@@ -47,9 +49,9 @@ func main() {
 	}
 	defer db.Close()
 
-	// Dependency injection
 	jobRepository := job.NewPostgresRepository(db)
-	jobService := job.NewService(jobRepository)
+	jobQueue := queue.NewJobQUeue(100)
+	jobService := job.NewService(jobRepository, jobQueue)
 
 	m := appmetrics.New()
 
@@ -58,6 +60,10 @@ func main() {
 		m,
 		logger,
 	)
+
+	workerPool := worker.New(4, jobQueue)
+
+	workerPool.Start(ctx)
 
 	router := server.NewRouter(jobHandler)
 

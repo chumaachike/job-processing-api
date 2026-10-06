@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+type Enqueuer interface {
+	TryEnqueue(Job) bool
+}
+
 type Repository interface {
 	CreateJob(context.Context, CreateJobRequest) (Job, error)
 	ListJobs(context.Context, JobFilter) ([]Job, error)
@@ -15,11 +19,12 @@ type Repository interface {
 }
 
 type Service struct {
-	repo Repository
+	repo  Repository
+	queue Enqueuer
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, queue Enqueuer) *Service {
+	return &Service{repo: repo, queue: queue}
 }
 
 func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (Job, error) {
@@ -37,7 +42,15 @@ func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (Job, err
 		return Job{}, ErrInvalidJob
 	}
 
-	return s.repo.CreateJob(ctx, req)
+	job, err := s.repo.CreateJob(ctx, req)
+	if err != nil {
+		return Job{}, err
+	}
+	if !s.queue.TryEnqueue(job) {
+		return Job{}, ErrQueueFull
+	}
+
+	return job, nil
 }
 
 func (s *Service) ListJobs(ctx context.Context, filter JobFilter) ([]Job, error) {

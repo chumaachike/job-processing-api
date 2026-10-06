@@ -21,6 +21,14 @@ func New(workers int, queue *queue.JobQueue) *Pool {
 	}
 }
 
+func (p *Pool) Start(ctx context.Context) {
+
+	for i := 0; i < p.workers; i++ {
+
+		go p.worker(ctx, i)
+	}
+}
+
 func (p *Pool) worker(ctx context.Context, id int) {
 	for {
 		select {

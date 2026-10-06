@@ -43,4 +43,5 @@ var (
 	ErrInvalidJobID     = errors.New("invalid job id")
 	ErrJobNotFound      = errors.New("job not found")
 	ErrInvalidJobStatus = errors.New("Invalid job status")
+	ErrQueueFull        = errors.New("job queue full")
 )
