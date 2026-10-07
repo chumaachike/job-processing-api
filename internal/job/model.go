@@ -19,6 +19,11 @@ type CreateJobRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+type JobMessage struct {
+	JobId int64  `json:"id"`
+	Type  string `json:"type"`
+}
+
 type JobStatus string
 
 const (
