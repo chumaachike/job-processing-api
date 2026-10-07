@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -88,7 +89,7 @@ func (r *PostgresRepository) ListJobs(ctx context.Context, filter JobFilter) ([]
 	return jobs, nil
 }
 
-func (r *PostgresRepository) GetJob(ctx context.Context, id int64) (Job, error) {
+func (r *PostgresRepository) GetJob(ctx context.Context, id uuid.UUID) (Job, error) {
 	const query = `
 		SELECT id, type, payload, status, created_at
 		FROM jobs
@@ -116,7 +117,7 @@ func (r *PostgresRepository) GetJob(ctx context.Context, id int64) (Job, error) 
 	return job, nil
 }
 
-func (r *PostgresRepository) UpdateJob(ctx context.Context, id int64, status JobStatus) (Job, error) {
+func (r *PostgresRepository) UpdateJob(ctx context.Context, id uuid.UUID, status JobStatus) (Job, error) {
 	const query = `
 		UPDATE jobs
 		SET status = $2

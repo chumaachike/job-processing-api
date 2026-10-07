@@ -3,8 +3,9 @@ package job
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type Enqueuer interface {
@@ -14,8 +15,8 @@ type Enqueuer interface {
 type Repository interface {
 	CreateJob(context.Context, CreateJobRequest) (Job, error)
 	ListJobs(context.Context, JobFilter) ([]Job, error)
-	GetJob(context.Context, int64) (Job, error)
-	UpdateJob(context.Context, int64, JobStatus) (Job, error)
+	GetJob(context.Context, uuid.UUID) (Job, error)
+	UpdateJob(context.Context, uuid.UUID, JobStatus) (Job, error)
 }
 
 type Service struct {
@@ -73,8 +74,8 @@ func (s *Service) ListJobs(ctx context.Context, filter JobFilter) ([]Job, error)
 func (s *Service) GetJob(ctx context.Context, id string) (Job, error) {
 	id = strings.TrimSpace(id)
 
-	jobID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || jobID <= 0 {
+	jobID, err := uuid.Parse(id)
+	if err != nil {
 		return Job{}, ErrInvalidJobID
 	}
 
@@ -84,9 +85,9 @@ func (s *Service) GetJob(ctx context.Context, id string) (Job, error) {
 func (s *Service) UpdateJobStatus(ctx context.Context, id string, status JobStatus) (Job, error) {
 	id = strings.TrimSpace(id)
 
-	jobID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || jobID <= 0 {
-		return Job{}, ErrInvalidJob
+	jobID, err := uuid.Parse(id)
+	if err != nil {
+		return Job{}, ErrInvalidJobID
 	}
 
 	status = JobStatus(strings.TrimSpace(string(status)))

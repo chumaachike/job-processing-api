@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Job struct {
-	ID        int64           `json:"id"`
+	ID        uuid.UUID       `json:"id"`
 	Type      string          `json:"type"`
 	Payload   json.RawMessage `json:"payload"`
 	Status    JobStatus       `json:"status"`
@@ -20,8 +22,8 @@ type CreateJobRequest struct {
 }
 
 type JobMessage struct {
-	JobId int64  `json:"id"`
-	Type  string `json:"type"`
+	JobId uuid.UUID `json:"id"`
+	Type  string    `json:"type"`
 }
 
 type JobStatus string
