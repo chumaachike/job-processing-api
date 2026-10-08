@@ -43,11 +43,11 @@ func (p *Pool) worker(ctx context.Context, id int) {
 	}
 }
 
-func (p *Pool) process(ctx context.Context, j job.Job) {
+func (p *Pool) process(ctx context.Context, j job.JobMessage) {
 
 	slog.Info(
 		"processing job",
-		"job_id", j.ID,
+		"job_id", j.JobId,
 		"type", j.Type,
 	)
 
@@ -55,6 +55,6 @@ func (p *Pool) process(ctx context.Context, j job.Job) {
 
 	slog.Info(
 		"job completed",
-		"job_id", j.ID,
+		"job_id", j.JobId,
 	)
 }
