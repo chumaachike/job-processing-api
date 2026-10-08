@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -11,37 +12,35 @@ import (
 )
 
 type PostgresRepository struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger *slog.Logger
 }
 
-func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
+func NewPostgresRepository(db *pgxpool.Pool, logger *slog.Logger) *PostgresRepository {
 	return &PostgresRepository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
-func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest) (Job, error) {
+func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessage, error) {
 	const query = `
-		INSERT INTO jobs (type, payload)
-		VALUES ($1, $2)
-		RETURNING id, type, payload, status, created_at
+		INSERT INTO jobs (type, payload, idempotency_key)
+		VALUES ($1, $2, $3)
+		RETURNING id, type
 	`
 
-	var job Job
+	var jobMessage JobMessage
 
-	err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload)).Scan(
-		&job.ID,
-		&job.Type,
-		&job.Payload,
-		&job.Status,
-		&job.CreatedAt,
+	err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload), req.IdempotencyKey).Scan(
+		&jobMessage.JobId, &jobMessage.Type,
 	)
 
 	if err != nil {
-		return Job{}, fmt.Errorf("insert job: %w", err)
+		return JobMessage{}, fmt.Errorf("insert job: %w", err)
 	}
 
-	return job, nil
+	return jobMessage, nil
 }
 
 func (r *PostgresRepository) ListJobs(ctx context.Context, filter JobFilter) ([]Job, error) {
@@ -127,12 +126,7 @@ func (r *PostgresRepository) UpdateJob(ctx context.Context, id uuid.UUID, status
 
 	var job Job
 
-	err := r.db.QueryRow(
-		ctx,
-		query,
-		id,
-		status,
-	).Scan(
+	err := r.db.QueryRow(ctx, query, id, status).Scan(
 		&job.ID,
 		&job.Type,
 		&job.Payload,
@@ -149,4 +143,26 @@ func (r *PostgresRepository) UpdateJob(ctx context.Context, id uuid.UUID, status
 	}
 
 	return job, nil
+}
+
+func (r *PostgresRepository) GetJobByIdemKey(ctx context.Context, key string) (JobMessage, error) {
+	query := `SELECT  id, type
+	FROM jobs 
+	WHERE idempotency_key = $1`
+
+	var jobMessage JobMessage
+
+	err := r.db.QueryRow(ctx, query, key).Scan(
+		&jobMessage.JobId, &jobMessage.Type,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return JobMessage{}, ErrJobNotFound
+	}
+
+	if err != nil {
+		return JobMessage{}, fmt.Errorf("get job by idem key: %w", err)
+	}
+
+	return jobMessage, nil
 }
