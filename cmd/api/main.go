@@ -49,7 +49,7 @@ func main() {
 	}
 	defer db.Close()
 
-	jobRepository := job.NewPostgresRepository(db)
+	jobRepository := job.NewPostgresRepository(db, logger)
 	jobQueue := queue.NewJobQUeue(100)
 	jobService := job.NewService(jobRepository, jobQueue)
 
