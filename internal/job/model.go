@@ -17,8 +17,9 @@ type Job struct {
 }
 
 type CreateJobRequest struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
+	IdempotencyKey string          `json:"idempotency_key"`
+	Type           string          `json:"type"`
+	Payload        json.RawMessage `json:"payload"`
 }
 
 type JobMessage struct {
