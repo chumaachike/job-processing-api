@@ -3,20 +3,23 @@ package job
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 )
 
 type Enqueuer interface {
-	TryEnqueue(Job) bool
+	TryEnqueue(JobMessage) bool
 }
 
 type Repository interface {
-	CreateJob(context.Context, CreateJobRequest) (Job, error)
+	CreateJob(context.Context, CreateJobRequest) (JobMessage, error)
 	ListJobs(context.Context, JobFilter) ([]Job, error)
 	GetJob(context.Context, uuid.UUID) (Job, error)
 	UpdateJob(context.Context, uuid.UUID, JobStatus) (Job, error)
+	GetJobByIdemKey(context.Context, string) (JobMessage, error)
 }
 
 type Service struct {
@@ -28,11 +31,11 @@ func NewService(repo Repository, queue Enqueuer) *Service {
 	return &Service{repo: repo, queue: queue}
 }
 
-func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (Job, error) {
+func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessage, error) {
 	req.Type = strings.TrimSpace(req.Type)
 
 	if req.Type == "" {
-		return Job{}, ErrInvalidJob
+		return JobMessage{}, ErrInvalidJob
 	}
 
 	if len(req.Payload) == 0 {
@@ -40,15 +43,30 @@ func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (Job, err
 	}
 
 	if !json.Valid(req.Payload) {
-		return Job{}, ErrInvalidJob
+		return JobMessage{}, ErrInvalidJob
+	}
+
+	if req.IdempotencyKey != "" {
+		job, err := s.repo.GetJobByIdemKey(ctx, req.IdempotencyKey)
+
+		switch {
+		case err == nil:
+			return job, nil
+
+		case errors.Is(err, ErrJobNotFound):
+
+		default:
+			return JobMessage{}, fmt.Errorf("checking idempotency key: %w", err)
+		}
 	}
 
 	job, err := s.repo.CreateJob(ctx, req)
 	if err != nil {
-		return Job{}, err
+		return JobMessage{}, err
 	}
+
 	if !s.queue.TryEnqueue(job) {
-		return Job{}, ErrQueueFull
+		return JobMessage{}, ErrQueueFull
 	}
 
 	return job, nil
