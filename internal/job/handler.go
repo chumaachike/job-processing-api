@@ -35,6 +35,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.logger.Error("invlid request", "Error", err)
 		return
 	}
 
