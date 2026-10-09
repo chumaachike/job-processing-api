@@ -25,17 +25,18 @@ func NewPostgresRepository(db *pgxpool.Pool, logger *slog.Logger) *PostgresRepos
 
 func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessage, error) {
 	const query = `
-		INSERT INTO jobs (type, payload, idempotency_key)
-		VALUES ($1, $2, $3)
+		INSERT INTO jobs (id, type, payload, idempotency_key)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, type
 	`
+	id := uuid.New()
 
 	var jobMessage JobMessage
 
-	err := r.db.QueryRow(ctx, query, req.Type, []byte(req.Payload), req.IdempotencyKey).Scan(
+	err := r.db.QueryRow(ctx, query, id, req.Type, []byte(req.Payload), req.IdempotencyKey).Scan(
 		&jobMessage.JobId, &jobMessage.Type,
 	)
-
+	slog.Log(ctx, slog.LevelInfo, id.String())
 	if err != nil {
 		return JobMessage{}, fmt.Errorf("insert job: %w", err)
 	}
