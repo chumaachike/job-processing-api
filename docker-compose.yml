@@ -37,11 +37,11 @@ services:
       - "15672:15672"
 
     environment:
-      - RABBITMQ_DEFAULT=${RABBIT_ADMIN}
-      - RABBITMQ_DEFAULT=${RABBIT_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBIT_ADMIN}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
 
     volumes:
-      -rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_data:/var/lib/rabbitmq
     
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]

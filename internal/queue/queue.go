@@ -1,10 +1,13 @@
 package queue
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/chumaachike/job-processing-api/internal/job"
 )
+
+var ErrQueueFull = errors.New("job queue is full")
 
 type JobQueue struct {
 	jobs chan job.JobMessage
@@ -17,12 +20,12 @@ func NewJobQUeue(capacity int) *JobQueue {
 	}
 }
 
-func (q *JobQueue) TryEnqueue(job job.JobMessage) bool {
+func (q *JobQueue) Publish(job job.JobMessage) error {
 	select {
 	case q.jobs <- job:
-		return true
+		return nil
 	default:
-		return false
+		return ErrQueueFull
 	}
 }
 

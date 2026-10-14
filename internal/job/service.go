@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type Enqueuer interface {
-	TryEnqueue(JobMessage) bool
+type Publisher interface {
+	Publish(JobMessage) error
 }
 
 type Repository interface {
@@ -24,10 +24,10 @@ type Repository interface {
 
 type Service struct {
 	repo  Repository
-	queue Enqueuer
+	queue Publisher
 }
 
-func NewService(repo Repository, queue Enqueuer) *Service {
+func NewService(repo Repository, queue Publisher) *Service {
 	return &Service{repo: repo, queue: queue}
 }
 
@@ -65,8 +65,8 @@ func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessa
 		return JobMessage{}, err
 	}
 
-	if !s.queue.TryEnqueue(job) {
-		return JobMessage{}, ErrQueueFull
+	if err = s.queue.Publish(job); err != nil {
+		return JobMessage{}, err
 	}
 
 	return job, nil
