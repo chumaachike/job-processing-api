@@ -52,6 +52,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, ErrQueueFull):
 		http.Error(w, "server busy, retry later", http.StatusServiceUnavailable)
+		return
 
 	case err != nil:
 		h.logger.Error("CreateJob internal error", "error", err)
@@ -69,6 +70,10 @@ func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jobs, err := h.service.ListJobs(r.Context(), filter)
+	if errors.Is(err, ErrInvalidJobFilter) {
+		http.Error(w, "Invalid job filter", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		h.logger.Error("ListJobs internal error", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -89,6 +94,9 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 	job, err := h.service.GetJob(r.Context(), id)
 
 	switch {
+	case errors.Is(err, ErrInvalidJobID):
+		http.Error(w, "Invalid job id", http.StatusBadRequest)
+		return
 	case errors.Is(err, ErrJobNotFound):
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return
@@ -103,6 +111,7 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateJobStatus(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
@@ -117,6 +126,11 @@ func (h *Handler) UpdateJobStatus(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "Request body must contain a single JSON object", http.StatusBadRequest)
 		return
 	}
 
