@@ -15,7 +15,7 @@ type RabbitMQ struct {
 	queueName string
 }
 
-func NewRabbitMQ(url, queueName string) (*RabbitMQ, error) {
+func NewRabbitMQ(queueName, url string) (*RabbitMQ, error) {
 	conn, err := amqp.Dial(url)
 
 	if err != nil {
@@ -51,7 +51,7 @@ func NewRabbitMQ(url, queueName string) (*RabbitMQ, error) {
 
 }
 
-func (r *RabbitMQ) Enqueue(ctx context.Context, job job.JobMessage) error {
+func (r *RabbitMQ) Publish(ctx context.Context, job job.JobMessage) error {
 	body, err := json.Marshal(job)
 
 	if err != nil {
@@ -64,4 +64,31 @@ func (r *RabbitMQ) Enqueue(ctx context.Context, job job.JobMessage) error {
 		Body:         body,
 	},
 	)
+}
+
+func (r *RabbitMQ) Consume(ctx context.Context) (<-chan amqp.Delivery, error) {
+	if err := r.channel.Qos(
+		1,     // prefetch count
+		0,     // prefetch size
+		false, // global
+	); err != nil {
+		return nil, fmt.Errorf("set qos: %w", err)
+	}
+
+	deliveries, err := r.channel.ConsumeWithContext(
+		ctx,
+		r.queueName,
+		"",    // consumer name
+		false, // autoAck - IMPORTANT: false
+		false, // exclusive
+		false, // noLocal
+		false, // noWait
+		nil,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("consume jobs: %w", err)
+	}
+
+	return deliveries, nil
 }

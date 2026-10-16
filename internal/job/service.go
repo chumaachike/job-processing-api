@@ -11,7 +11,7 @@ import (
 )
 
 type Publisher interface {
-	Publish(JobMessage) error
+	Publish(context.Context, JobMessage) error
 }
 
 type Repository interface {
@@ -65,7 +65,7 @@ func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessa
 		return JobMessage{}, err
 	}
 
-	if err = s.queue.Publish(job); err != nil {
+	if err = s.queue.Publish(ctx, job); err != nil {
 		return JobMessage{}, err
 	}
 

@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -20,7 +21,7 @@ func NewJobQUeue(capacity int) *JobQueue {
 	}
 }
 
-func (q *JobQueue) Publish(job job.JobMessage) error {
+func (q *JobQueue) Publish(_ context.Context, job job.JobMessage) error {
 	select {
 	case q.jobs <- job:
 		return nil
