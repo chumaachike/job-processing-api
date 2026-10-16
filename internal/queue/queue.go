@@ -21,7 +21,11 @@ func NewJobQUeue(capacity int) *JobQueue {
 	}
 }
 
-func (q *JobQueue) Publish(_ context.Context, job job.JobMessage) error {
+func (q *JobQueue) Publish(ctx context.Context, job job.JobMessage) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	select {
 	case q.jobs <- job:
 		return nil
