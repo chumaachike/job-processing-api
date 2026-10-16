@@ -26,7 +26,7 @@ func NewPostgresRepository(db *pgxpool.Pool, logger *slog.Logger) *PostgresRepos
 func (r *PostgresRepository) CreateJob(ctx context.Context, req CreateJobRequest) (JobMessage, error) {
 	const query = `
 		INSERT INTO jobs (id, type, payload, idempotency_key)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, NULLIF($4, ''))
 		RETURNING id, type
 	`
 	id := uuid.New()
