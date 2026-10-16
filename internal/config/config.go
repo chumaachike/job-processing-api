@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -32,15 +33,17 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("RABBIT_PASSWORD is required")
 	}
 
+	rabbitURI := url.URL{
+		Scheme: "amqp",
+		User:   url.UserPassword(rabbitUser, rabbitPassword),
+		Host:   fmt.Sprintf("%s:5672", rabbitHost),
+		Path:   "/",
+	}
+
 	cfg := Config{
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		Port:        os.Getenv("PORT"),
-		RabbitURL: fmt.Sprintf(
-			"amqp://%s:%s@%s:5672/",
-			rabbitUser,
-			rabbitPassword,
-			rabbitHost,
-		),
+		RabbitURL:   rabbitURI.String(),
 	}
 
 	if cfg.DatabaseURL == "" {

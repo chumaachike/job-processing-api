@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -53,7 +52,6 @@ func main() {
 	jobRepository := job.NewPostgresRepository(db, logger)
 	jobQueue, err := queue.NewRabbitMQ("job", cfg.RabbitURL)
 	if err != nil {
-		fmt.Printf("RabbitMQ URL: %q\n", cfg.RabbitURL)
 		slog.Error("failed to connect to rabbit", "error", err)
 		return
 	}
