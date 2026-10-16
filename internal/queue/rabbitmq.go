@@ -15,6 +15,15 @@ type RabbitMQ struct {
 	queueName string
 }
 
+func (r *RabbitMQ) Close() error {
+	channelErr := r.channel.Close()
+	connectionErr := r.conn.Close()
+	if channelErr != nil {
+		return channelErr
+	}
+	return connectionErr
+}
+
 func NewRabbitMQ(queueName, url string) (*RabbitMQ, error) {
 	conn, err := amqp.Dial(url)
 
